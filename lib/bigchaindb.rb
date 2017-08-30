@@ -99,7 +99,6 @@ module Bdb
     end
   end
 
-  # Bdb.create_asset(IPDB, ENV["SLACKBOT_ADMIN_PROMO_PUBKEY"], ENV["SLACKBOT_ADMIN_PROMO_PRIVKEY"], {"name"=> "indtest"}, 13, {"g"=> 4})
   def self.create_asset(ipdb, public_key, private_key, asset_data, amount = 1, metadata = {"x"=> "y"})
     output = Bdb.generate_output(public_key, amount)
     create = Bdb.create_txn(public_key, output, asset_data, metadata)
