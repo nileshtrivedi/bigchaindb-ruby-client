@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.authors     = ["Nilesh Trivedi"]
   s.email       = 'github@nileshtrivedi.com'
   s.files       = ["lib/bigchaindb.rb"]
-  spec.add_runtime_dependency 'httparty'
+  s.add_runtime_dependency 'httparty'
   s.homepage    =
     'https://github.com/nileshtrivedi/bigchaindb-ruby-client'
   s.license       = 'MIT'
