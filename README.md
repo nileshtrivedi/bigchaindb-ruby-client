@@ -11,3 +11,7 @@ irb> require 'bigchaindb'
 irb> Bdb.generate_keys
 ```
 See example of a full transaction flow in `lib/bigchaindb.rb`
+
+# ToDo
+
+- Write tests!
