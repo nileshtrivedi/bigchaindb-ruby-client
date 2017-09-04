@@ -1,8 +1,17 @@
+# bigchaindb-ruby-client
+
+> Ruby library that uses BigchainDB's CLI tool to prepare/sign transactions and submit them to IPDB or a BigchainDB Node.
+
 # Installation
 
-You must have BigChainDB's CLI tool in the path: https://github.com/bigchaindb/bdb-transaction-cli
+As a prerequisite, you must have BigchainDB's CLI tool in your path: 
+https://github.com/bigchaindb/bdb-transaction-cli
 
-`gem install bigchaindb`
+Then install this project from RubyGems:
+
+```bash
+gem install bigchaindb
+```
 
 # Usage
 
@@ -10,7 +19,7 @@ You must have BigChainDB's CLI tool in the path: https://github.com/bigchaindb/b
 irb> require 'bigchaindb'
 irb> Bdb.generate_keys
 ```
-See example of a full transaction flow in `lib/bigchaindb.rb`
+See example of a full transaction flow in [`lib/bigchaindb.rb`](./lib/bigchaindb.rb)
 
 # ToDo
 
