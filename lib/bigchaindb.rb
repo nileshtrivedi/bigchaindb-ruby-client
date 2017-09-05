@@ -47,9 +47,9 @@ module Bdb
   def self.spend(txn, output_ids = [])
     # Convert outputs in txn to signable/spendable inputs.
     if output_ids.any?
-      args = [txn.to_json]
-    else
       args = [txn.to_json, output_ids.to_json]
+    else
+      args = [txn.to_json]
     end
     JSON.parse(`bdb spend #{args.shelljoin}`)
   end
@@ -61,9 +61,28 @@ module Bdb
 
   def self.transfer_asset(ipdb, receiver_pubkey, sender_pubkey, sender_privkey, inputs, amount, asset_id, metadata = {"ts"=> Time.now.to_s})
     asset = { "id" => asset_id}
-    input_amount = inputs["outputs"].inject(0) { |sum,out| sum + out["amount"].to_i }
+    new_inputs = []
+    input_amount = 0
+
+    if inputs.blank?
+      # ask IPDB for unspent outputs
+      unspent = Bdb.unspent_outputs(ipdb, sender_pubkey)
+      unspent.each do |u|
+        txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]))
+        next unless t["asset"]["id"] == asset_id
+        input_amount += txn["outputs"][u["output_index"]]["amount"].to_i
+        new_inputs.push(Bdb.spend(txn, u["output_index"]))
+      end
+    else
+      # assume that every output for sender_pubkey in given inputs is unspent and can be used as input
+      inputs.each do |inp|
+        input_amount += inp["outputs"].select { |o| o["condition"]["details"]["public_key"] == sender_pubkey }.inject(0) { |sum,out| sum + out["amount"].to_i }
+        new_inputs.push(Bdb.spend(inp, inputs["outputs"].each_with_index.select { |o,i| o["condition"]["details"]["public_key"] == sender_pubkey }.map(&:last)))
+      end
+    end
+
     if amount > input_amount
-      puts "input_amount < amount"
+      puts "input_amount #{input_amount} < amount #{amount}"
       return nil
     end
     outputs = [Bdb.generate_output(receiver_pubkey,amount)]
@@ -71,14 +90,14 @@ module Bdb
       # left-over amount should be transferred back to sender
       outputs.push(Bdb.generate_output(sender_pubkey,input_amount - amount))
     end
-    input = Bdb.spend(inputs)
-    transfer = Bdb.transfer_txn(input, outputs, asset, metadata)
+    
+    transfer = Bdb.transfer_txn(new_inputs, outputs, asset, metadata)
     signed_transfer = Bdb.sign(transfer, sender_privkey)
     resp = post_transaction(ipdb, signed_transfer)
     if resp.code == 202
-      puts "Transaction posted. Now checking status..."
-      sleep(5)
       txn = JSON.parse(resp.body)
+      puts "Transaction #{txn["id"]} posted. Now checking status..."
+      sleep(5)
       status_resp = get_transaction_status(ipdb, txn["id"])
       if (status_resp.code == 200) && JSON.parse(status_resp.body)["status"] == "valid"
         return {"transfer" => transfer, "txn" => txn}
@@ -105,9 +124,9 @@ module Bdb
     signed_create = Bdb.sign(create, private_key)
     resp = post_transaction(ipdb, signed_create)
     if resp.code == 202
-      puts "Transaction posted. Now checking status..."
-      sleep(5)
       txn = JSON.parse(resp.body)
+      puts "Transaction #{txn["id"]} posted. Now checking status..."
+      sleep(5)
       status_resp = get_transaction_status(ipdb, txn["id"])
       if (status_resp.code == 200) && JSON.parse(status_resp.body)["status"] == "valid"
         return {"create" => create, "txn" => txn}
