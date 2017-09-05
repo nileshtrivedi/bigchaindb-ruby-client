@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'bigchaindb'
-  s.version     = '0.0.3'
+  s.version     = '0.0.4'
   s.date        = '2017-09-05'
   s.summary     = "BigchainDB / IPDB client"
   s.description = "Library for preparing/signing transactions and submitting them or querying a BigchainDB/IPDB node"

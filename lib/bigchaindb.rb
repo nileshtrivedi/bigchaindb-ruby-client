@@ -55,7 +55,7 @@ module Bdb
   end
 
   def self.unspent_outputs(ipdb, pubkey)
-    resp = self.get_outputs_by_pubkey(ipdb, pubkey, spent = :both)
+    resp = self.get_outputs_by_pubkey(ipdb, pubkey, spent = false)
     JSON.parse(resp.body)
   end
 
@@ -64,12 +64,12 @@ module Bdb
     new_inputs = []
     input_amount = 0
 
-    if inputs.blank?
+    if inputs.nil? || inputs.none?
       # ask IPDB for unspent outputs
       unspent = Bdb.unspent_outputs(ipdb, sender_pubkey)
       unspent.each do |u|
-        txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]))
-        next unless t["asset"]["id"] == asset_id
+        txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]).body)
+        next unless txn["asset"]["id"] == asset_id
         input_amount += txn["outputs"][u["output_index"]]["amount"].to_i
         new_inputs.push(Bdb.spend(txn, u["output_index"]))
       end
@@ -77,7 +77,7 @@ module Bdb
       # assume that every output for sender_pubkey in given inputs is unspent and can be used as input
       inputs.each do |inp|
         input_amount += inp["outputs"].select { |o| o["condition"]["details"]["public_key"] == sender_pubkey }.inject(0) { |sum,out| sum + out["amount"].to_i }
-        new_inputs.push(Bdb.spend(inp, inputs["outputs"].each_with_index.select { |o,i| o["condition"]["details"]["public_key"] == sender_pubkey }.map(&:last)))
+        new_inputs += Bdb.spend(inp, inp["outputs"].each_with_index.select { |o,i| o["condition"]["details"]["public_key"] == sender_pubkey }.map(&:last))
       end
     end
 
@@ -116,6 +116,17 @@ module Bdb
       puts "Error in transfer_asset: #{resp.code} #{resp.body}"
       return nil
     end
+  end
+
+  def self.balance_asset(ipdb, public_key, asset_id)
+    unspent = Bdb.unspent_outputs(ipdb, public_key)
+    balance = 0
+    unspent.each do |u|
+      txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]).body)
+      next unless ((txn["operation"] == "CREATE") && (txn["id"] == asset_id)) || (txn["asset"]["id"] == asset_id)
+      balance += txn["outputs"][u["output_index"]]["amount"].to_i
+    end
+    return balance
   end
 
   def self.create_asset(ipdb, public_key, private_key, asset_data, amount = 1, metadata = {"x"=> "y"})
