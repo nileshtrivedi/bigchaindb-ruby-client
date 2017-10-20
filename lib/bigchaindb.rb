@@ -59,7 +59,7 @@ module Bdb
     JSON.parse(resp.body)
   end
 
-  def self.transfer_asset(ipdb, receiver_pubkey, sender_pubkey, sender_privkey, inputs, amount, asset_id, metadata = {"ts"=> Time.now.to_s})
+  def self.transfer_asset(ipdb, receiver_pubkeys_amounts, sender_pubkey, sender_privkey, inputs, asset_id, metadata = {"ts"=> Time.now.to_s})
     asset = { "id" => asset_id}
     new_inputs = []
     input_amount = 0
@@ -81,14 +81,23 @@ module Bdb
       end
     end
 
-    if amount > input_amount
-      puts "input_amount #{input_amount} < amount #{amount}"
+    outgoing_amount = 0
+    receiver_pubkeys_amounts.each do |pa|
+      if pa[:amount] <= 0
+        puts "Invalid amount (<=0) found for #{pa[:pubkey]}"
+        return nil
+      end
+      outgoing_amount += pa[:amount]
+    end
+
+    if outgoing_amount > input_amount
+      puts "input_amount #{input_amount} < outgoing_amount #{outgoing_amount}"
       return nil
     end
-    outputs = [Bdb.generate_output(receiver_pubkey,amount)]
-    if amount < input_amount
+    outputs = receiver_pubkeys_amounts.collect { |pa| Bdb.generate_output(pa[:pubkey],pa[:amount]) }
+    if outgoing_amount < input_amount
       # left-over amount should be transferred back to sender
-      outputs.push(Bdb.generate_output(sender_pubkey,input_amount - amount))
+      outputs.push(Bdb.generate_output(sender_pubkey,input_amount - outgoing_amount))
     end
     
     transfer = Bdb.transfer_txn(new_inputs, outputs, asset, metadata)
