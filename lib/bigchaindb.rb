@@ -74,7 +74,7 @@ module Bdb
         txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]).body)
         next unless txn["asset"]["id"] == asset_id
         input_amount += txn["outputs"][u["output_index"]]["amount"].to_i
-        new_inputs.push(Bdb.spend(txn, u["output_index"]))
+        new_inputs.push(Bdb.spend(txn, [u["output_index"]]))
       end
     else
       # assume that every output for sender_pubkey in given inputs is unspent and can be used as input
