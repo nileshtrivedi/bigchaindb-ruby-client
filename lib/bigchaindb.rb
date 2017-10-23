@@ -67,6 +67,9 @@ module Bdb
     if inputs.nil? || inputs.none?
       # ask IPDB for unspent outputs
       unspent = Bdb.unspent_outputs(ipdb, sender_pubkey)
+      if unspent.none?
+        return nil, "#{sender_pubkey} does not have any unspent outputs for asset #{asset_id}"
+      end
       unspent.each do |u|
         txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]).body)
         next unless txn["asset"]["id"] == asset_id
@@ -84,15 +87,13 @@ module Bdb
     outgoing_amount = 0
     receiver_pubkeys_amounts.each do |pa|
       if pa[:amount] <= 0
-        puts "Invalid amount (<=0) found for #{pa[:pubkey]}"
-        return nil
+        return nil, "Invalid amount (<=0) found for #{pa[:pubkey]}"
       end
       outgoing_amount += pa[:amount]
     end
 
     if outgoing_amount > input_amount
-      puts "input_amount #{input_amount} < outgoing_amount #{outgoing_amount}"
-      return nil
+      return nil, "input_amount #{input_amount} < outgoing_amount #{outgoing_amount}"
     end
     outputs = receiver_pubkeys_amounts.collect { |pa| Bdb.generate_output(pa[:pubkey],pa[:amount]) }
     if outgoing_amount < input_amount
@@ -109,21 +110,19 @@ module Bdb
       sleep(5)
       status_resp = get_transaction_status(ipdb, txn["id"])
       if (status_resp.code == 200) && JSON.parse(status_resp.body)["status"] == "valid"
-        return {"transfer" => transfer, "txn" => txn}
+        return txn, "success"
       else
         puts "Trying again: #{status_resp.code} #{status_resp.body}"
         sleep(5)
         status_resp = get_transaction_status(ipdb, txn["id"])
         if (status_resp.code == 200) && JSON.parse(status_resp.body)["status"] == "valid"
-          return {"transfer" => transfer, "txn" => txn}
+          return txn, "success"
         else
-          puts "Tried twice but failed. #{status_resp.code} #{status_resp.body}"
-          return nil
+          return nil, "Tried twice but failed. #{status_resp.code} #{status_resp.body}"
         end
       end
     else
-      puts "Error in transfer_asset: #{resp.code} #{resp.body}"
-      return nil
+      return nil, "Error in transfer_asset: #{resp.code} #{resp.body}"
     end
   end
 
