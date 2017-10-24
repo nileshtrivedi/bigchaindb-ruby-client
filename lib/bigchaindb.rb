@@ -3,6 +3,7 @@ require 'shellwords'
 require 'httparty'
 
 module Bdb
+  ADDRESS_REGEXP = /\A[1-9A-Za-z]{43,45}\z/
   def self.generate_keys
     JSON.parse(`bdb generate_keys`)
     # {"public"=> "x", "private"=> "y"} #Base58 256-bit numbers
@@ -26,6 +27,8 @@ module Bdb
   end
 
   def self.transfer_txn(inputs, outputs, asset, metadata = nil)
+    args = {inputs: inputs, outputs: outputs, asset: asset, metadata: metadata}
+    puts "In transfer_txn, args = #{args.inspect}"
     if metadata
       args = [inputs.to_json, outputs.to_json, asset.to_json, metadata.to_json]
     else
@@ -72,9 +75,9 @@ module Bdb
       end
       unspent.each do |u|
         txn = JSON.parse(Bdb.get_transaction_by_id(ipdb, u["transaction_id"]).body)
-        next unless txn["asset"]["id"] == asset_id
+        next unless ((txn["operation"] == "CREATE") && txn["id"] == asset_id) || ((txn["operation"] == "TRANSFER") && txn["asset"]["id"] == asset_id)
         input_amount += txn["outputs"][u["output_index"]]["amount"].to_i
-        new_inputs.push(Bdb.spend(txn, [u["output_index"]]))
+        new_inputs += Bdb.spend(txn, [u["output_index"]])
       end
     else
       # assume that every output for sender_pubkey in given inputs is unspent and can be used as input

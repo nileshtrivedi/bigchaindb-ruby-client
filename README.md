@@ -21,6 +21,8 @@ irb> Bdb.generate_keys
 ```
 See example of a full transaction flow in [`lib/bigchaindb.rb`](./lib/bigchaindb.rb)
 
-# ToDo
+# Testing
 
-- Write tests!
+```
+IPDB_APP_ID=<app_id> IPDB_APP_KEY=<app_key> ruby test.rb
+```
